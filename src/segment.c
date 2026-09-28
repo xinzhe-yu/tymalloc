@@ -4,7 +4,9 @@
 
 #define TY_PAGE_SIZE (1 << 22)
 
- ty_segment_t* ty_segment_alloc(ty_page_kind_t page_kind, size_t required_size) {
+static inline size_t align_up(size_t size, size_t alignment);
+
+ ty_segment_t* ty_segment_alloc(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size) {
     size_t segment_size; 
     size_t page_shift;
     size_t capacity;
@@ -23,12 +25,27 @@
         capacity = 1; 
     }
 
-
-
-    void *p = mmap(NULL, segment_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // MMAP 4MiB allignment 
+    size_t alloc_size = segment_size * 2; 
+    void *p = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) {
         perror("segment_alloc: mmap");
         return NULL;  
+    }
+
+    uintptr_t raw_addr = (uintptr_t) p;
+    uintptr_t aligned_addr = align_up(raw_addr, TY_PAGE_SIZE);
+
+    // Unmap leading unaligned 
+    size_t lead_size = aligned_addr - raw_addr; 
+    if (lead_size > 0) {
+        munmap(p, lead_size);
+    }
+
+    // Unmap trailing unaligned
+    size_t trail_size = alloc_size - lead_size - segment_size; 
+    if (trail_size > 0) {
+        munmap((void*)(aligned_addr + segment_size), trail_size);
     }
 
     ty_segment_t* segment = (ty_segment_t*) p;
@@ -36,10 +53,24 @@
     segment->page_shift = page_shift;
     segment->capcity = capacity;
     segment->page_kind = page_kind;
-    segment->thread_id = get_current_thread_id();
+    segment->thread_id = heap ? heap->thread_id : 0; 
+
+    // Heap->segments keeps track of all active segments
+    if (heap != NULL) {
+        segment->next = heap->segments;
+        heap->segments = segment; 
+    } else {
+        segment->next = NULL; 
+    }
     
     return segment; 
  }
+
+
+ static inline size_t align_up(size_t size, size_t alignment) {
+    return (size + alignment - 1) & ~(alignment - 1);
+ }
+
 
 
 
