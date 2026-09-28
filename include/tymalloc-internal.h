@@ -25,14 +25,21 @@ struct ty_block_s {
 
 // The page struct
 struct ty_page_s {
+    // List linkage between pages of same size class or full list
+    ty_page_t* next; 
+    ty_page_t* prev; 
+
+    // Block lists
     ty_block_t* free; 
     ty_block_t* local_free; 
     _Atomic ty_block_t* thread_free;
+
+    // Metadata 
     size_t used;         // Number of blocks currently allocated to the user
     size_t thread_freed; // Tracks counter for remote free
     size_t capacity;     // Number of block committed into the free list so far (free + local_free) 
     size_t reserved;     // The maximum number of blocks that can fit inside this page area
-    bool is_full; 
+    bool is_full;        // True if page is in TY_BIN_FULL
 }; 
 
 // The segment struct 
