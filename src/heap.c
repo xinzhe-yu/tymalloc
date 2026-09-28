@@ -1,5 +1,3 @@
-
-
 #include <sys/mman.h> 
 #include <unistd.h>
 #include <stdatomic.h>
@@ -7,7 +5,6 @@
 
 static ty_heap_t* ty_heap_init(void);
 static _Thread_local ty_heap_t* tlb = NULL; 
-
 
 ty_heap_t* ty_heap_get_default(void) {
     if (tlb == NULL) {
@@ -18,7 +15,6 @@ ty_heap_t* ty_heap_get_default(void) {
 
 /* Init the heap with jump tables */
 static ty_heap_t* ty_heap_init(void) {
-    
     void *p = mmap(NULL, ty_os_page_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) {
         perror("heap init: mmap");
@@ -28,7 +24,6 @@ static ty_heap_t* ty_heap_init(void) {
     ty_heap_t* heap = (ty_heap_t*) p;
     
     heap->thread_id = get_current_thread_id(); 
-    
     return heap; 
 }
 
@@ -49,7 +44,6 @@ uint32_t get_current_thread_id(void) {
         return atomic_fetch_and_add(&global_thread_counter, 1);
     }
     return cached_thread_id; 
-    
 }
 
 
