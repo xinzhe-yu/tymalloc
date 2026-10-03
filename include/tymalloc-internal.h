@@ -36,11 +36,14 @@ struct ty_page_s {
     _Atomic ty_block_t* thread_free;
 
     // Metadata 
-    size_t used;         // Number of blocks currently allocated to the user
+    size_t used;         // Number of block committed into the free list so far (free + local_free) 
+    size_t reserved;     // Number of blocks currently allocated to the user
+    size_t capacity;     // The maximum number of blocks that can fit inside this page area
     size_t thread_freed; // Tracks counter for remote free
-    size_t capacity;     // Number of block committed into the free list so far (free + local_free) 
-    size_t reserved;     // The maximum number of blocks that can fit inside this page area
-    size_t size_class;    // The size class of the page
+
+    size_t block_size;   // Exact byte size, size class of the page
+    uint8_t size_bin;    // Index into heap->pages[size_bin]
+     
     bool is_full;        // True if page is in TY_BIN_FULL
 }; 
 
@@ -51,17 +54,17 @@ struct ty_segment_s {
     size_t segment_size; // for mummap custom segments 
 
     // Page bookkeeping
-    size_t capacity;      // Number of pages in this segment 
-    size_t used;         // Number of page used  /* Refactor: used+capacity can be derived from page_in_use */
+    uint8_t capacity;      // Number of pages in this segment 
+    uint8_t used;         // Number of page used  /* Refactor: used+capacity can be derived from page_in_use */
     uint64_t page_in_use; // Bit vector tracking pages in use within segment; 0 is Free
 
     // List linkage between active segments
-    ty_segment_t next;
+    ty_segment_t* next;
 
     ty_page_t pages[64];
 }; 
 
-typedef struct ty_heap_s {
+struct ty_heap_s {
     ty_page_t* pages_direct[128];  // O(1) direct lookup 
     ty_page_t* pages[74];          // Size class bins + Full slot
     _Atomic(void*) thread_delayed_free;

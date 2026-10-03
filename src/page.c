@@ -10,6 +10,8 @@ static inline size_t ty_segment_claim_page(ty_segment_t* seg);
 /* Formates a fresh page within a segment */
 ty_page_t* ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_index) {
     ty_page_t* page = &segment->pages[free_slot_index];
+
+
     page->capacity = 
     page->free = 
     page->is_full =
@@ -17,7 +19,7 @@ ty_page_t* ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_sl
     page->next = 
     page->prev = 
     page->reserved = 
-    page->size_class =
+    page->block_size =
     page->thread_free = 
     page->thread_freed = 
     page->used = 
@@ -35,7 +37,7 @@ ty_page_t* ty_page_collect() {
 }
 
 /* Finds a free page within segment or make a new segment */
-ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t size_class, size_t block_size) {
+ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
     ty_page_kind_t required_kind = ty_page_kind_for_size(block_size);
     
     for (ty_segment_t* seg = heap->segments; seg; seg = seg->next) { // search segments to find a unused page 
