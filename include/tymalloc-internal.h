@@ -79,6 +79,7 @@ struct ty_heap_s {
     uint32_t thread_id;
     ty_segment_t* segments; // Head of Linked list of active segments of current thread
 
+    /* Why is there no segment inside heap? */
 };
 
 
