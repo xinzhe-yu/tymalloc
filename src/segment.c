@@ -1,14 +1,14 @@
 #include "tymalloc-internal.h"
 
-#include <sys/mman.h> 
 
-#define TY_SEGMENT_SIZE (1 << 22)
+/* Encapsualte SO virtual memory. Handles
+    mmap mumap, 4 Mib alignment over allocation, slot bitmasking
+    No other file should call mmap (except heap OS bootstrap)
+*/
 
-/* Aligns - rounds up to a factor of alignment */
-static inline size_t align_up(size_t size, size_t alignment);
 
 
-ty_segment_t* ty_segment_alloc(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size) {
+ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size) {
     size_t segment_size; 
     size_t page_shift;
     size_t capacity;
@@ -25,10 +25,13 @@ ty_segment_t* ty_segment_alloc(ty_heap_t* heap, ty_page_kind_t page_kind, size_t
         segment_size = align_up(required_size + sizeof(ty_segment_t), TY_SEGMENT_SIZE);
         page_shift = 22; 
         capacity = 1; 
+    } else {
+        assert(0 && "ty_segment_create: invalid page_kind");
+        return NULL;
     }
 
     // MMAP 4MiB allignment 
-    size_t alloc_size = segment_size * 2; 
+    size_t alloc_size = segment_size * 2; // Overallocating to guarantee natural 4 MiB alignment 
     void *p = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) {
         perror("segment_alloc: mmap");
@@ -50,14 +53,14 @@ ty_segment_t* ty_segment_alloc(ty_heap_t* heap, ty_page_kind_t page_kind, size_t
         munmap((void*)(aligned_addr + segment_size), trail_size);
     }
 
-    ty_segment_t* segment = (ty_segment_t*) p;
+    ty_segment_t* segment = (ty_segment_t*) aligned_addr;
     segment->segment_size = segment_size;
     segment->page_shift = page_shift;
-    segment->capacity = capacity;
+    segment->page_amounts = capacity;
     segment->page_kind = page_kind;
     segment->thread_id = heap ? heap->thread_id : 0; 
 
-    //segment->page_in_use = 0;
+    segment->page_in_use = 0;
 
     // Add current segment to Heap->segments bookkeeping
     if (heap != NULL) {
@@ -72,9 +75,27 @@ ty_segment_t* ty_segment_alloc(ty_heap_t* heap, ty_page_kind_t page_kind, size_t
 }
 
 
- static inline size_t align_up(size_t size, size_t alignment) {
-    return (size + alignment - 1) & ~(alignment - 1);
- }
+
+
+
+// Marks a slot used & return its page pointer
+// Or NULL if segment is full 
+ty_page_t* ty_segment_claim_page(ty_segment_t* seg) {
+    uint64_t free_mask = ~(seg->page_in_use);
+
+    if (free_mask == 0) { // Segment is full 
+        return NULL;
+    }
+
+    size_t free_page_idx = __builtin_ctzll(free_mask);  
+    seg->page_in_use |= (1ULL << free_page_idx);    // 1ULL 64bits // Mark slot used
+    seg->page_used++; 
+    return &seg->pages[free_page_idx];
+
+}
+
+//TODO: ty_segment_free_page: Release a page
+
 
 
 

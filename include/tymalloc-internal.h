@@ -5,9 +5,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <assert.h>
+#include <stdio.h>
+#include <sys/mman.h> 
+#include <unistd.h>
 
-#define TY_PAGE_SIZE (1 << 16) // 64KiB
+
+
 #define TY_SEGMENT_SIZE (1 << 22) // 4MiB
+#define TY_NO_PAGE SIZE_MAX
+#define TY_MAX_ALIGN _Alignof(max_align_t) 
 
 //Forward decleartions
 typedef struct ty_block_s ty_block_t; 
@@ -30,18 +37,19 @@ struct ty_page_s {
     ty_page_t* next; 
     ty_page_t* prev; 
 
-    // Block lists
-    ty_block_t* free; 
-    ty_block_t* local_free; 
-    _Atomic ty_block_t* thread_free;
+    // Sharded free lists
+    ty_block_t* free;       // Main allocation list
+    ty_block_t* local_free; // Local deallocation list
+    _Atomic(ty_block_t*) thread_free; // Atomic remote list 
 
     // Metadata 
-    size_t used;         // Number of block committed into the free list so far (free + local_free) 
-    size_t reserved;     // Number of blocks currently allocated to the user
+    size_t used;         // Count of currently active allocations to the user  
+    size_t reserved;     // How many blocks have been carved from payload so far
     size_t capacity;     // The maximum number of blocks that can fit inside this page area
     size_t thread_freed; // Tracks counter for remote free
+    uint8_t* page_start;  // Where page 0 starts after metadata overhead
 
-    size_t block_size;   // Exact byte size, size class of the page
+    size_t block_size;   // Uniform byte size of every object in this page (Size class)
     uint8_t size_bin;    // Index into heap->pages[size_bin]
      
     bool is_full;        // True if page is in TY_BIN_FULL
@@ -54,8 +62,8 @@ struct ty_segment_s {
     size_t segment_size; // for mummap custom segments 
 
     // Page bookkeeping
-    uint8_t capacity;      // Number of pages in this segment 
-    uint8_t used;         // Number of page used  /* Refactor: used+capacity can be derived from page_in_use */
+    uint8_t page_amounts;      // Number of pages in this segment 
+    uint8_t page_used;         // Number of page used  /* Refactor: used+capacity can be derived from page_in_use */
     uint64_t page_in_use; // Bit vector tracking pages in use within segment; 0 is Free
 
     // List linkage between active segments
@@ -75,11 +83,31 @@ struct ty_heap_s {
 
 
 // Function prototypes
-ty_segment_t* ty_segment_alloc(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size);
 
+// Heap.c 
 ty_heap_t* ty_heap_get_default(void);
 size_t ty_os_page_size(void);
 uint32_t get_current_thread_id(void);
+
+// Segment.c 
+ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size);
+ty_page_t* ty_segment_claim_page(ty_segment_t* seg);
+
+
+// Page.c 
+ty_page_kind_t ty_page_kind_for_size(size_t block_size);
+void ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_index);         // Birth  
+
+
+
+
+// Helpers
+
+/* Aligns - rounds up to a factor of alignment */
+static inline size_t align_up(size_t size, size_t alignment) {
+    return (size + alignment - 1) & ~(alignment - 1);
+}
+
 
 
 #endif

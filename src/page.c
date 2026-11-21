@@ -1,71 +1,94 @@
 #include "tymalloc-internal.h"
 
-ty_page_t* ty_page_init();         // Birth  
-ty_page_t* ty_page_extend();       // Growth 
-ty_page_t* ty_page_collect();      // Recycle
-ty_page_t* ty_heap_get_page();     // Retrival
 
-static inline size_t ty_segment_claim_page(ty_segment_t* seg);
+
+/* Encapsulates all page state changes 
+init extend collect and free are the only ones allowed to manuplate free list pointers
+eg. free local_free thread_free*/
+
+
+
+
+ty_page_t* ty_page_carve();        // Growth // Move to internal.h
+ty_page_t* ty_page_collect();      // Recycle
+
+ty_page_kind_t ty_page_kind_for_size(size_t block_size);
 
 /* Formates a fresh page within a segment */
-ty_page_t* ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_index) {
+
+void ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_index) {
     ty_page_t* page = &segment->pages[free_slot_index];
 
 
-    page->capacity = 
-    page->free = 
-    page->is_full =
-    page->local_free = 
-    page->next = 
-    page->prev = 
-    page->reserved = 
-    page->block_size =
-    page->thread_free = 
-    page->thread_freed = 
-    page->used = 
+    // 3.1 paper
+    size_t total_page_size; 
+    if (segment->page_kind == TY_PAGE_SMALL) {
+        total_page_size = (1ULL << 16); // 64 KiB
+    } else if (segment->page_kind == TY_PAGE_LARGE) {
+        total_page_size = (1ULL << 22);
+    } else if (segment->page_kind == TY_PAGE_HUGE) {
+        total_page_size = segment->segment_size;
+    } else {
+        assert(0 && "ty_page_init: invalid page_kind");
+    }
+
+    size_t header_offset = (free_slot_index == 0) ? sizeof(ty_segment_t) : 0;
+    header_offset = align_up(header_offset, TY_MAX_ALIGN);
+
+
+    size_t usable_size = total_page_size - header_offset; 
+
+
+    uint8_t* page_start;
+    if (free_slot_index == 0) {
+        page_start = (uint8_t*)((uintptr_t)segment + header_offset);
+    } else {
+        page_start = (uint8_t*)((uintptr_t)segment + (free_slot_index << segment->page_shift));
+    }
+
+
+    page->free = NULL;
+   
+    page->capacity = usable_size / block_size; 
+    page->reserved = 0;
+    page->used = 0;
+    
+    // link to same size class?
+    //page->next = // Do i have to search through all pages? // When a page is full mark full + make new linked page 
+    //page->prev =
+   
+    page->block_size = block_size; 
+    page->page_start = page_start;
+  
+    page->thread_freed = 0;
+    page->is_full = 0; 
+    page->local_free = NULL;
+    atomic_init(&page->thread_free, NULL);
+
+
+    // Carve inital batches of pages
+    ty_page_carve(page->free);
+    
 }
 
 /* Carves the next slice of uncarved memory (Inialize blocks by chunk)*/
-ty_page_t* ty_page_extend() {
-
+ty_page_t* ty_page_carve() {
+    assert(!"ty_page_extend not implemented");
+    return NULL;
 }
 
 /* Maintence function ruins when page->free empty AND reserved == Capacity */
 /* Collects local_free and thread_free */
 ty_page_t* ty_page_collect() {
-
-}
-
-/* Finds a free page within segment or make a new segment */
-ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
-    ty_page_kind_t required_kind = ty_page_kind_for_size(block_size);
-    
-    for (ty_segment_t* seg = heap->segments; seg; seg = seg->next) { // search segments to find a unused page 
-        if (seg->page_kind == required_kind && seg->used < seg->capacity) {
-
-            size_t free_page_idx = ty_segment_claim_page(seg);
-
-            return ty_page_init(seg, block_size, free_page_idx); // Found a compatible segment with space
-        }
-    }
-
-    // Make a new segment 
-    ty_segment_t* seg = ty_segment_alloc(heap, required_kind, block_size);
-    size_t free_page_idx = ty_segment_claim_page(seg);
-    return ty_page_init(seg, block_size, free_page_idx); 
-
-}
-
-/* Returns a free_page_index and mark it as used (Vector bookkeeping) */
-static inline size_t ty_segment_claim_page(ty_segment_t* seg) {
-    uint64_t free_mask = ~(seg->page_in_use);
-    size_t free_page_idx = __builtin_ctzll(free_mask);
-    seg->page_in_use |= (1ULL << free_page_idx);    // 1ULL 64bits
-    seg->used++; 
-    return free_page_idx; 
+    assert(!"ty_page_collect not implemented");
+    return NULL;
 }
 
 
+
+
+
+// Defined in paper 3.1
 ty_page_kind_t ty_page_kind_for_size(size_t block_size) {
     if (block_size <= (1 << 13)) { // 8 KiB
         return TY_PAGE_SMALL; 

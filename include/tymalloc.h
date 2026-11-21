@@ -5,5 +5,7 @@
 
 void* ty_malloc(size_t size);
 void  ty_free(void* p);
+//ty_calloc
+//ty_realloc
 
 #endif

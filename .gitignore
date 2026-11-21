@@ -1,0 +1,3 @@
+*.o
+*.idx
+compile_commands.json
