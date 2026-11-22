@@ -37,16 +37,16 @@ ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
             if (page == NULL) { // Segment is full, No available page
                 continue;       // Search next segment 
             }
-            return ty_page_init(seg, block_size, free_page_idx); // Found a compatible segment with space
+            ty_page_init(page, block_size); // Found a compatible segment with space
+            return page; 
         }
     }
 
-    // Make a new segment 
+    // Make a new segment, claim a page, init the page, carve the first batches of blocks; 
     ty_segment_t* seg = ty_segment_create(heap, required_kind, block_size);
-    size_t free_page_idx = ty_segment_claim_page(seg);
-    // make new page
-    return ty_page_init(seg, block_size, free_page_idx); 
-
+    ty_page_t* page = ty_segment_claim_page(seg);
+    ty_page_init(page, block_size); 
+    return page;
 }
 
 
@@ -64,7 +64,7 @@ static _Thread_local uint32_t cached_thread_id = 0;
 
 uint32_t get_current_thread_id(void) {
     if (cached_thread_id == 0) {
-        return atomic_fetch_and_add(&global_thread_counter, 1);
+        cached_thread_id = atomic_fetch_add(&global_thread_counter, 1);
     }
     return cached_thread_id; 
 }

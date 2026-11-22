@@ -3,26 +3,29 @@
 
 CC = gcc
 CFLAGS = -Wall -Iinclude -Wextra -g -fsanitize=address 
+SRC = $(wildcard src/*.c)
+OBJS = $(patsubst src/%.c, build/%.o, $(SRC))
 
 
-build/test_basic: build/alloc.o build/free.o build/heap.o build/page.o build/segment.o build/test_basic.o
-	$(CC) $(CFLAGS) build/alloc.o build/free.o build/heap.o build/page.o build/segment.o build/test_basic.o -o build/test_basic
+build/test_basic: $(OBJS) build/test_basic.o
+	$(CC) $(CFLAGS) $^ -o $@
 	
 build/test_basic.o: tests/test_basic.c
-	$(CC) $(CFLAGS) -c tests/test_basic.c -o build/test_basic.o
+	mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
 
-build/alloc.o: src/alloc.c
-	$(CC) $(CFLAGS) -c src/alloc.c -o build/alloc.o
+build/%.o: src/%.c
+	mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
 
-build/free.o: src/free.c
-	$(CC) $(CFLAGS) -c src/free.c -o build/free.o
 
-build/heap.o: src/heap.c
-	$(CC) $(CFLAGS) -c src/heap.c -o build/heap.o
 
-build/page.o: src/page.c
-	$(CC) $(CFLAGS) -c src/page.c -o build/page.o
+clean: 
+	rm -rf build
 
-build/segment.o: src/segment.c
-	$(CC) $(CFLAGS) -c src/segment.c -o build/segment.o
+.PHONY: clean
 
+test: build/test_basic
+	./build/test_basic
+
+.PHONY: test

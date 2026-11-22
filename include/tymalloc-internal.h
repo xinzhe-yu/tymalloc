@@ -96,8 +96,7 @@ ty_page_t* ty_segment_claim_page(ty_segment_t* seg);
 
 // Page.c 
 ty_page_kind_t ty_page_kind_for_size(size_t block_size);
-void ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_index);         // Birth  
-
+void ty_page_init(ty_page_t* page, size_t block_size);     
 
 
 
@@ -108,6 +107,18 @@ static inline size_t align_up(size_t size, size_t alignment) {
     return (size + alignment - 1) & ~(alignment - 1);
 }
 
+// Finds _Segment_ based on page 
+static inline ty_segment_t* segment_lookup(ty_page_t* page) {
+    uintptr_t mask = ~(TY_SEGMENT_SIZE - 1);
+    ty_segment_t* segment = (ty_segment_t*)(((uintptr_t)page) & mask); 
+    return segment;
+}
 
+// Find page slot index
+static inline int page_slot_index_lookup(ty_page_t* page) {
+    ty_segment_t* segment = segment_lookup(page);
+    return ((uintptr_t)page - (uintptr_t)segment) >> segment->page_shift;
+
+}
 
 #endif

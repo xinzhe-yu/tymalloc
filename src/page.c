@@ -16,12 +16,12 @@ ty_page_kind_t ty_page_kind_for_size(size_t block_size);
 
 /* Formates a fresh page within a segment */
 
-void ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_index) {
-    ty_page_t* page = &segment->pages[free_slot_index];
+void ty_page_init(ty_page_t* page, size_t block_size) {
+    
+    ty_segment_t* segment = segment_lookup(page);
+    int free_slot_index = page_slot_index_lookup(page);
 
-
-    // 3.1 paper
-    size_t total_page_size; 
+    size_t total_page_size; // Sizes are mentioned in section 3.1 paper
     if (segment->page_kind == TY_PAGE_SMALL) {
         total_page_size = (1ULL << 16); // 64 KiB
     } else if (segment->page_kind == TY_PAGE_LARGE) {
@@ -35,9 +35,16 @@ void ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_ind
     size_t header_offset = (free_slot_index == 0) ? sizeof(ty_segment_t) : 0;
     header_offset = align_up(header_offset, TY_MAX_ALIGN);
 
-
     size_t usable_size = total_page_size - header_offset; 
 
+    page->capacity = usable_size / block_size; 
+    page->block_size = block_size; 
+
+  
+    // link to same size class?
+    //page->next = // Do i have to search through all pages? // When a page is full mark full + make new linked page 
+    //page->prev =
+   
 
     uint8_t* page_start;
     if (free_slot_index == 0) {
@@ -45,21 +52,11 @@ void ty_page_init(ty_segment_t* segment, size_t block_size, size_t free_slot_ind
     } else {
         page_start = (uint8_t*)((uintptr_t)segment + (free_slot_index << segment->page_shift));
     }
-
-
-    page->free = NULL;
-   
-    page->capacity = usable_size / block_size; 
-    page->reserved = 0;
-    page->used = 0;
-    
-    // link to same size class?
-    //page->next = // Do i have to search through all pages? // When a page is full mark full + make new linked page 
-    //page->prev =
-   
-    page->block_size = block_size; 
     page->page_start = page_start;
   
+    page->free = NULL;
+    page->reserved = 0;
+    page->used = 0;
     page->thread_freed = 0;
     page->is_full = 0; 
     page->local_free = NULL;
