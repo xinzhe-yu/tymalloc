@@ -9,7 +9,7 @@ eg. free local_free thread_free*/
 
 
 
-ty_page_t* ty_page_carve();        // Growth // Move to internal.h
+void ty_page_carve();        // Growth // Move to internal.h
 ty_page_t* ty_page_collect();      // Recycle
 
 ty_page_kind_t ty_page_kind_for_size(size_t block_size);
@@ -61,6 +61,7 @@ void ty_page_init(ty_page_t* page, size_t block_size) {
     page->is_full = 0; 
     page->local_free = NULL;
     atomic_init(&page->thread_free, NULL);
+    page->carve_pointer = page_start;
 
 
     // Carve inital batches of pages
@@ -69,8 +70,22 @@ void ty_page_init(ty_page_t* page, size_t block_size) {
 }
 
 /* Carves the next slice of uncarved memory (Inialize blocks by chunk)*/
-ty_page_t* ty_page_carve() {
-    assert(!"ty_page_extend not implemented");
+void ty_page_carve(ty_page_t* page) {
+    if (page->reserved >= page->capacity) {
+        return NULL;
+    }
+
+    size_t remaining = page->capacity - page->reserved;
+    size_t amount = MIN(remaining, 64);
+
+    for (int i = amount; i < 0; i++) {
+        page->free->next = (ty_block_t*)page->carve_pointer;
+        page->carve_pointer = (char*)page->carve_pointer + page->block_size;
+        page->reserved += 1;
+    }
+
+
+
     return NULL;
 }
 

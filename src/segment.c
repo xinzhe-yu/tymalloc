@@ -71,6 +71,7 @@ ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_
         /* To-do: does this need to be put into orphan list*/
     }
 
+
     return segment; 
 }
 

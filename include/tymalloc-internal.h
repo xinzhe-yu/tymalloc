@@ -16,12 +16,16 @@
 #define TY_NO_PAGE SIZE_MAX
 #define TY_MAX_ALIGN _Alignof(max_align_t) 
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 //Forward decleartions
 typedef struct ty_block_s ty_block_t; 
 typedef struct ty_page_s ty_page_t;
 typedef struct ty_segment_s ty_segment_t;
 typedef struct ty_heap_s ty_heap_t;
 
+//.       Question: Why use Enum here?
+//                  Instead of Macro 1ULL << 22 per size 
 typedef enum ty_page_kind_e {
     TY_PAGE_SMALL,
     TY_PAGE_LARGE,
@@ -30,6 +34,7 @@ typedef enum ty_page_kind_e {
 
 struct ty_block_s {
     ty_block_t* next; 
+    ty_block_t* prev; 
 };
 
 struct ty_page_s {
@@ -47,7 +52,8 @@ struct ty_page_s {
     size_t reserved;     // How many blocks have been carved from payload so far
     size_t capacity;     // The maximum number of blocks that can fit inside this page area
     size_t thread_freed; // Tracks counter for remote free
-    uint8_t* page_start;  // Where page 0 starts after metadata overhead
+    uint8_t* page_start;  // Where page's payload starts
+    uint8_t* carve_pointer; // Carve pointer moving 
 
     size_t block_size;   // Uniform byte size of every object in this page (Size class)
     uint8_t size_bin;    // Index into heap->pages[size_bin]
