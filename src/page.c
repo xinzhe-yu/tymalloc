@@ -9,7 +9,7 @@ eg. free local_free thread_free*/
 
 
 
-void ty_page_carve();        // Growth // Move to internal.h
+void ty_page_extend();        // Growth // Move to internal.h
 ty_page_t* ty_page_collect();      // Recycle
 
 ty_page_kind_t ty_page_kind_for_size(size_t block_size);
@@ -32,28 +32,22 @@ void ty_page_init(ty_page_t* page, size_t block_size) {
         assert(0 && "ty_page_init: invalid page_kind");
     }
 
-    size_t header_offset = (free_slot_index == 0) ? sizeof(ty_segment_t) : 0;
-    header_offset = align_up(header_offset, TY_MAX_ALIGN);
-
-    size_t usable_size = total_page_size - header_offset; 
-
+    // Page 0 is smaller than all other pages
+    // Page 0 includes Segment's meta data
+    size_t start_offset = page_start_offset(free_slot_index);
+    size_t usable_size = total_page_size - start_offset; 
+    
     page->capacity = usable_size / block_size; 
-    page->block_size = block_size; 
+    assert(page->capacity != 0);
+
+    
 
   
     // link to same size class?
     //page->next = // Do i have to search through all pages? // When a page is full mark full + make new linked page 
     //page->prev =
    
-
-    uint8_t* page_start;
-    if (free_slot_index == 0) {
-        page_start = (uint8_t*)((uintptr_t)segment + header_offset);
-    } else {
-        page_start = (uint8_t*)((uintptr_t)segment + (free_slot_index << segment->page_shift));
-    }
-    page->page_start = page_start;
-  
+    page->block_size = block_size; 
     page->free = NULL;
     page->reserved = 0;
     page->used = 0;
@@ -61,32 +55,40 @@ void ty_page_init(ty_page_t* page, size_t block_size) {
     page->is_full = 0; 
     page->local_free = NULL;
     atomic_init(&page->thread_free, NULL);
-    page->carve_pointer = page_start;
 
 
     // Carve inital batches of pages
-    ty_page_carve(page->free);
+    ty_page_extend(page);
     
 }
 
 /* Carves the next slice of uncarved memory (Inialize blocks by chunk)*/
-void ty_page_carve(ty_page_t* page) {
+void ty_page_extend(ty_page_t* page) {
     assert(page->free == NULL);
-    if (page->reserved >= page->capacity) return;
+    size_t reserved = page->reserved;
+    if (reserved >= page->capacity) return;
 
-    size_t max_extend 
-
-    size_t extend = page->capacity - page->reserved;
+    size_t remaining = page->capacity - reserved;
+    size_t max_batch = 64;
+    size_t count = MIN(remaining, max_batch);
+    size_t bsize = page->block_size; 
     
-    size_t amount = MIN(, TY_OS_PAGE/page->block_size); // Change to 4Kib
-    
+    uint8_t* payload_base = get_payload_base(page);
 
+    // Payload_start = carve_pointer
+    uint8_t* payload_start = payload_base + (reserved * bsize);
 
+    // Make count linked blocks
+    ty_block_t head;
+    ty_block_t* curr = &head;
 
+    for (int i = 0; i < (int)count; i++) {
+        curr->next = (ty_block_t*)payload_start;
+        payload_start = (uint8_t*)payload_start + bsize; 
+        curr = curr->next;
+    }
 
-
-
-
+    page->reserved += count;
 }
 
 /* Maintence function ruins when page->free empty AND reserved == Capacity */

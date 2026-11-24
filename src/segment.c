@@ -90,7 +90,6 @@ ty_page_t* ty_segment_claim_page(ty_segment_t* seg) {
 
     size_t free_page_idx = __builtin_ctzll(free_mask);  
     seg->page_in_use |= (1ULL << free_page_idx);    // 1ULL 64bits // Mark slot used
-    seg->page_used++; 
     return &seg->pages[free_page_idx];
 
 }

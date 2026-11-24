@@ -52,9 +52,7 @@ struct ty_page_s {
     size_t reserved;     // How many blocks have been carved from payload so far
     size_t capacity;     // The maximum number of blocks that can fit inside this page area
     size_t thread_freed; // Tracks counter for remote free
-    uint8_t* page_start;  // Where page's payload starts
-    uint8_t* carve_pointer; // Carve pointer moving 
-
+  
     size_t block_size;   // Uniform byte size of every object in this page (Size class)
     uint8_t size_bin;    // Index into heap->pages[size_bin]
      
@@ -68,8 +66,9 @@ struct ty_segment_s {
     size_t segment_size; // for mummap custom segments 
 
     // Page bookkeeping
-    uint8_t page_amounts;      // Number of pages in this segment 
-    uint8_t page_used;         // Number of page used  /* Refactor: used+capacity can be derived from page_in_use */
+    uint8_t page_amounts;      // Number of pages in this segment -> derived from page_shift
+    // TY_SEGMENT_SIZE >> seg->page_shift
+    
     uint64_t page_in_use; // Bit vector tracking pages in use within segment; 0 is Free
 
     // List linkage between active segments
@@ -124,23 +123,20 @@ static inline ty_segment_t* segment_lookup(ty_page_t* page) {
 // Find page slot index
 static inline int page_slot_index_lookup(ty_page_t* page) {
     ty_segment_t* segment = segment_lookup(page);
-    return ((uintptr_t)page - (uintptr_t)segment) >> segment->page_shift;
+    return (int)(page - segment->pages);
+}
 
+static inline size_t page_start_offset(uint8_t slot_index) {
+    size_t offset = (slot_index == 0) ? sizeof(ty_segment_t) : 0;
+    return align_up(offset, TY_MAX_ALIGN);
 }
 
 
-
-static inline void block_insert_front(ty_page_t* page, ty_block_t* block) {
-    ty_block_t* p = page->free->next;
-    p->prev = block;
-    block->next = (ty_block_t*) p;
-    block->prev = NULL;
-    page->free->next = block;
+static inline uint8_t* get_payload_base(ty_page_t* page) {
+    ty_segment_t* seg = segment_lookup(page);
+    uint8_t slot_index = page_slot_index_lookup(page);
+    return (uint8_t*)seg + ((size_t)slot_index << seg->page_shift) + page_start_offset(slot_index);
 }
-
-
-
-
 
 
 

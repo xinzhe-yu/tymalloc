@@ -30,9 +30,13 @@ static ty_heap_t* ty_heap_init(void) {
 /* Finds a free page within segment or make a new segment */
 ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
     ty_page_kind_t required_kind = ty_page_kind_for_size(block_size);
+
+    ty_segment_t* seg = heap->segments;
+
+    size_t page_used = __builtin_popcountll(seg->page_in_use);
     
-    for (ty_segment_t* seg = heap->segments; seg; seg = seg->next) { // search segments to find a unused page 
-        if (seg->page_kind == required_kind && seg->page_used < seg->page_amounts) {
+    for (; seg; seg = seg->next) { // search segments to find a unused page 
+        if (seg->page_kind == required_kind && page_used < seg->page_amounts) {
             ty_page_t* page = ty_segment_claim_page(seg);
             if (page == NULL) { // Segment is full, No available page
                 continue;       // Search next segment 
