@@ -71,22 +71,22 @@ void ty_page_init(ty_page_t* page, size_t block_size) {
 
 /* Carves the next slice of uncarved memory (Inialize blocks by chunk)*/
 void ty_page_carve(ty_page_t* page) {
-    if (page->reserved >= page->capacity) {
-        return NULL;
-    }
+    assert(page->free == NULL);
+    if (page->reserved >= page->capacity) return;
 
-    size_t remaining = page->capacity - page->reserved;
-    size_t amount = MIN(remaining, 64);
+    size_t max_extend 
 
-    for (int i = amount; i < 0; i++) {
-        page->free->next = (ty_block_t*)page->carve_pointer;
-        page->carve_pointer = (char*)page->carve_pointer + page->block_size;
-        page->reserved += 1;
-    }
+    size_t extend = page->capacity - page->reserved;
+    
+    size_t amount = MIN(, TY_OS_PAGE/page->block_size); // Change to 4Kib
+    
 
 
 
-    return NULL;
+
+
+
+
 }
 
 /* Maintence function ruins when page->free empty AND reserved == Capacity */

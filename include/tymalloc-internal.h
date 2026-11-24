@@ -15,6 +15,7 @@
 #define TY_SEGMENT_SIZE (1 << 22) // 4MiB
 #define TY_NO_PAGE SIZE_MAX
 #define TY_MAX_ALIGN _Alignof(max_align_t) 
+#define TY_OS_PAGE (1 << 12) // 4 Kib
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -34,7 +35,6 @@ typedef enum ty_page_kind_e {
 
 struct ty_block_s {
     ty_block_t* next; 
-    ty_block_t* prev; 
 };
 
 struct ty_page_s {
@@ -132,8 +132,10 @@ static inline int page_slot_index_lookup(ty_page_t* page) {
 
 static inline void block_insert_front(ty_page_t* page, ty_block_t* block) {
     ty_block_t* p = page->free->next;
-    block->next = (ty_block_t) p;
-
+    p->prev = block;
+    block->next = (ty_block_t*) p;
+    block->prev = NULL;
+    page->free->next = block;
 }
 
 
