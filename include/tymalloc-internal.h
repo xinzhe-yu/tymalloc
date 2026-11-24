@@ -128,4 +128,19 @@ static inline int page_slot_index_lookup(ty_page_t* page) {
 
 }
 
+
+
+static inline void block_insert_front(ty_page_t* page, ty_block_t* block) {
+    ty_block_t* p = page->free->next;
+    block->next = (ty_block_t) p;
+
+}
+
+
+
+
+
+
+
+
 #endif
