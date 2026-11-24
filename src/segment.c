@@ -11,20 +11,16 @@
 ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size) {
     size_t segment_size; 
     size_t page_shift;
-    size_t capacity;
 
     if (page_kind == TY_PAGE_SMALL) {
         segment_size = TY_SEGMENT_SIZE; // 4 MiB
         page_shift = 16;             // 64 KiB per page
-        capacity = 64;
     } else if (page_kind == TY_PAGE_LARGE) {
         segment_size = TY_SEGMENT_SIZE; // 4 MiB
         page_shift = 22;             // 4 MiB per page
-        capacity = 1;
     } else if (page_kind == TY_PAGE_HUGE) {
         segment_size = align_up(required_size + sizeof(ty_segment_t), TY_SEGMENT_SIZE);
         page_shift = 22; 
-        capacity = 1; 
     } else {
         assert(0 && "ty_segment_create: invalid page_kind");
         return NULL;
@@ -56,7 +52,7 @@ ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_
     ty_segment_t* segment = (ty_segment_t*) aligned_addr;
     segment->segment_size = segment_size;
     segment->page_shift = page_shift;
-    segment->page_amounts = capacity;
+    //segment->page_amounts = capacity; deleted
     segment->page_kind = page_kind;
     segment->thread_id = heap ? heap->thread_id : 0; 
 

@@ -32,11 +32,12 @@ ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
     ty_page_kind_t required_kind = ty_page_kind_for_size(block_size);
 
     ty_segment_t* seg = heap->segments;
+    size_t page_amount = (TY_SEGMENT_SIZE >> seg->page_shift);
 
     size_t page_used = __builtin_popcountll(seg->page_in_use);
     
     for (; seg; seg = seg->next) { // search segments to find a unused page 
-        if (seg->page_kind == required_kind && page_used < seg->page_amounts) {
+        if (seg->page_kind == required_kind && page_used < page_amount) {
             ty_page_t* page = ty_segment_claim_page(seg);
             if (page == NULL) { // Segment is full, No available page
                 continue;       // Search next segment 
@@ -47,8 +48,8 @@ ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
     }
 
     // Make a new segment, claim a page, init the page, carve the first batches of blocks; 
-    ty_segment_t* seg = ty_segment_create(heap, required_kind, block_size);
-    ty_page_t* page = ty_segment_claim_page(seg);
+    ty_segment_t* new_seg = ty_segment_create(heap, required_kind, block_size);
+    ty_page_t* page = ty_segment_claim_page(new_seg);
     ty_page_init(page, block_size); 
     return page;
 }

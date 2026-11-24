@@ -66,7 +66,7 @@ struct ty_segment_s {
     size_t segment_size; // for mummap custom segments 
 
     // Page bookkeeping
-    uint8_t page_amounts;      // Number of pages in this segment -> derived from page_shift
+    //uint8_t page_amounts;      // Number of pages in this segment -> derived from page_shift
     // TY_SEGMENT_SIZE >> seg->page_shift
     
     uint64_t page_in_use; // Bit vector tracking pages in use within segment; 0 is Free
