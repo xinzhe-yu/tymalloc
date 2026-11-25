@@ -1,7 +1,7 @@
 #include "tymalloc-internal.h"
 
 
-/* Encapsualte SO virtual memory. Handles
+/* Encapsualte OS virtual memory. Handles
     mmap mumap, 4 Mib alignment over allocation, slot bitmasking
     No other file should call mmap (except heap OS bootstrap)
 */
@@ -11,16 +11,20 @@
 ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size) {
     size_t segment_size; 
     size_t page_shift;
+    uint64_t page_in_use;
 
     if (page_kind == TY_PAGE_SMALL) {
         segment_size = TY_SEGMENT_SIZE; // 4 MiB
         page_shift = 16;             // 64 KiB per page
+        page_in_use = 0;
     } else if (page_kind == TY_PAGE_LARGE) {
         segment_size = TY_SEGMENT_SIZE; // 4 MiB
         page_shift = 22;             // 4 MiB per page
+        page_in_use = ~1ULL;
     } else if (page_kind == TY_PAGE_HUGE) {
         segment_size = align_up(required_size + sizeof(ty_segment_t), TY_SEGMENT_SIZE);
         page_shift = 22; 
+        page_in_use = ~1ULL;
     } else {
         assert(0 && "ty_segment_create: invalid page_kind");
         return NULL;
@@ -56,7 +60,8 @@ ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_
     segment->page_kind = page_kind;
     segment->thread_id = heap ? heap->thread_id : 0; 
 
-    segment->page_in_use = 0;
+
+    segment->page_in_use = page_in_use;
 
     // Add current segment to Heap->segments bookkeeping
     if (heap != NULL) {
@@ -70,10 +75,6 @@ ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_
 
     return segment; 
 }
-
-
-
-
 
 // Marks a slot used & return its page pointer
 // Or NULL if segment is full 

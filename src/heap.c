@@ -31,11 +31,17 @@ static ty_heap_t* ty_heap_init(void) {
 ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size) {
     ty_page_kind_t required_kind = ty_page_kind_for_size(block_size);
 
-    ty_segment_t* seg = heap->segments;
-    size_t page_amount = (TY_SEGMENT_SIZE >> seg->page_shift);
+     
+    ty_segment_t* seg = heap->segments; // First/empty heap has no segments
 
-    size_t page_used = __builtin_popcountll(seg->page_in_use);
-    
+    size_t page_amount;
+    size_t page_used; 
+    // First/empty heap has no segments; Watch out for NULl dereference 
+    if (seg != NULL) {
+        page_amount = (TY_SEGMENT_SIZE >> seg->page_shift);
+        page_used = __builtin_popcountll(seg->page_in_use);
+    }
+  
     for (; seg; seg = seg->next) { // search segments to find a unused page 
         if (seg->page_kind == required_kind && page_used < page_amount) {
             ty_page_t* page = ty_segment_claim_page(seg);

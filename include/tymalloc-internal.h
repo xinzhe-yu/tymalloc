@@ -94,6 +94,7 @@ struct ty_heap_s {
 ty_heap_t* ty_heap_get_default(void);
 size_t ty_os_page_size(void);
 uint32_t get_current_thread_id(void);
+ty_page_t* ty_heap_get_page(ty_heap_t* heap, size_t block_size);
 
 // Segment.c 
 ty_segment_t* ty_segment_create(ty_heap_t* heap, ty_page_kind_t page_kind, size_t required_size);
